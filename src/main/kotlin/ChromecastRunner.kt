@@ -1,3 +1,4 @@
+
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import su.litvak.chromecast.api.v2.ChromeCast
@@ -7,7 +8,7 @@ import su.litvak.chromecast.api.v2.ChromeCastSpontaneousEvent
 import su.litvak.chromecast.api.v2.ChromeCastSpontaneousEventListener
 import su.litvak.chromecast.api.v2.ChromeCasts
 import su.litvak.chromecast.api.v2.ChromeCastsListener
-import su.litvak.chromecast.api.v2.Media
+import su.litvak.chromecast.api.v2.MediaMetadata
 import su.litvak.chromecast.api.v2.MediaStatus
 import java.util.Arrays
 
@@ -29,6 +30,8 @@ class ChromecastRunner(val logger: Logger) : ChromeCastsListener, ChromeCastSpon
       if (runningApp != null && !runningApp.isIdleScreen) {
         logger.info("{} is running app: {}", chromeCast.title, runningApp.name)
         printMetaData(chromeCast.mediaStatus)
+      } else {
+        logger.info("{} is : {}", chromeCast.title, chromeCast.status)
       }
     } catch (e: java.io.IOException) {
       logger.error("Running app failed", e)
@@ -64,56 +67,55 @@ class ChromecastRunner(val logger: Logger) : ChromeCastsListener, ChromeCastSpon
 
   private fun printMetaData(mediaStatus: MediaStatus) {
     val media = mediaStatus.media
-    val metaData = media.metaData
-    val metaDataHelper = metaData.metaData
+    val metadata = media.metadata
 
     logger.info("  volume: {}", mediaStatus.volume)
     logger.info("  currentTime: {}", mediaStatus.currentTime.toInt())
     logger.info("  duration: {}", media.duration.toInt())
 
-    when (metaDataHelper) {
-      is Media.MetaData.GenericMetaData -> {
-        logger.info("  artist: {}", metaDataHelper.artist())
-        logger.info("  title: {}", metaDataHelper.title())
-        logger.info("  subtitle: {}", metaDataHelper.subtitle())
-        logger.info("  images: {}", Arrays.toString(metaDataHelper.images()))
+    when (metadata) {
+      is MediaMetadata.GenericMetaData -> {
+        logger.info("  artist: {}", metadata.artist())
+        logger.info("  title: {}", metadata.title())
+        logger.info("  subtitle: {}", metadata.subtitle())
+        logger.info("  images: {}", Arrays.toString(metadata.images()))
       }
-      is Media.MetaData.MovieMetaData -> {
-        logger.info("  title: {}", metaDataHelper.title())
-        logger.info("  subtitle: {}", metaDataHelper.subtitle())
-        logger.info("  studio: {}", metaDataHelper.studio())
-        logger.info("  releaseDate: {}", metaDataHelper.releaseDate())
-        logger.info("  images: {}", Arrays.toString(metaDataHelper.images()))
+      is MediaMetadata.MovieMetaData -> {
+        logger.info("  title: {}", metadata.title())
+        logger.info("  subtitle: {}", metadata.subtitle())
+        logger.info("  studio: {}", metadata.studio())
+        logger.info("  releaseDate: {}", metadata.releaseDate())
+        logger.info("  images: {}", Arrays.toString(metadata.images()))
       }
-      is Media.MetaData.TvShowMetaData -> {
-        logger.info("  seriesTitle: {}", metaDataHelper.seriesTitle())
-        logger.info("  season: {}", metaDataHelper.seasonNumber())
-        logger.info("  episode: {}", metaDataHelper.episodeNumber())
-        logger.info("  title: {}", metaDataHelper.title())
-        logger.info("  broadcastDate: {}", metaDataHelper.broadcastDate())
-        logger.info("  releaseDate: {}", metaDataHelper.releaseDate())
-        logger.info("  images: {}", Arrays.toString(metaDataHelper.images()))
+      is MediaMetadata.TvShowMetaData -> {
+        logger.info("  seriesTitle: {}", metadata.seriesTitle())
+        logger.info("  season: {}", metadata.seasonNumber())
+        logger.info("  episode: {}", metadata.episodeNumber())
+        logger.info("  title: {}", metadata.title())
+        logger.info("  broadcastDate: {}", metadata.broadcastDate())
+        logger.info("  releaseDate: {}", metadata.releaseDate())
+        logger.info("  images: {}", Arrays.toString(metadata.images()))
       }
-      is Media.MetaData.MusicTrackMetaData -> {
-        logger.info("  artist: {}", metaDataHelper.artist())
-        logger.info("  title: {}", metaDataHelper.title())
-        logger.info("  albumTitle: {}", metaDataHelper.albumTitle())
-        logger.info("  albumArtist: {}", metaDataHelper.albumArtist())
-        logger.info("  composer: {}", metaDataHelper.composer())
-        logger.info("  disc: {}", metaDataHelper.discNumber())
-        logger.info("  track: {}", metaDataHelper.trackNumber())
-        logger.info("  releaseDate: {}", metaDataHelper.releaseDate())
-        logger.info("  images: {}", Arrays.toString(metaDataHelper.images()))
+      is MediaMetadata.MusicTrackMetaData -> {
+        logger.info("  artist: {}", metadata.artist())
+        logger.info("  title: {}", metadata.title())
+        logger.info("  albumName: {}", metadata.albumName())
+        logger.info("  albumArtist: {}", metadata.albumArtist())
+        logger.info("  composer: {}", metadata.composer())
+        logger.info("  disc: {}", metadata.discNumber())
+        logger.info("  track: {}", metadata.trackNumber())
+        logger.info("  releaseDate: {}", metadata.releaseDate())
+        logger.info("  images: {}", Arrays.toString(metadata.images()))
       }
-      is Media.MetaData.PhotoMetaData -> {
-        logger.info("  artist: {}", metaDataHelper.artist())
-        logger.info("  title: {}", metaDataHelper.title())
-        logger.info("  creationDate: {}", metaDataHelper.creationDate())
-        logger.info("  height: {}", metaDataHelper.height())
-        logger.info("  width: {}", metaDataHelper.width())
-        logger.info("  locationName: {}", metaDataHelper.locationName())
-        logger.info("  locationLat: {}", metaDataHelper.locationLatitude())
-        logger.info("  locationLon: {}", metaDataHelper.locationLongitude())
+      is MediaMetadata.PhotoMetaData -> {
+        logger.info("  artist: {}", metadata.artist())
+        logger.info("  title: {}", metadata.title())
+        logger.info("  creationDate: {}", metadata.creationDate())
+        logger.info("  height: {}", metadata.height())
+        logger.info("  width: {}", metadata.width())
+        logger.info("  locationName: {}", metadata.locationName())
+        logger.info("  locationLat: {}", metadata.locationLatitude())
+        logger.info("  locationLon: {}", metadata.locationLongitude())
       }
     }
   }
