@@ -1,4 +1,3 @@
-
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import su.litvak.chromecast.api.v2.ChromeCast
@@ -8,11 +7,15 @@ import su.litvak.chromecast.api.v2.ChromeCastSpontaneousEvent
 import su.litvak.chromecast.api.v2.ChromeCastSpontaneousEventListener
 import su.litvak.chromecast.api.v2.ChromeCasts
 import su.litvak.chromecast.api.v2.ChromeCastsListener
-import su.litvak.chromecast.api.v2.MediaMetadata
+import su.litvak.chromecast.api.v2.Media
 import su.litvak.chromecast.api.v2.MediaStatus
-import java.util.Arrays
+import su.litvak.chromecast.api.v2.Status
+import java.util.Timer
+import kotlin.concurrent.timer
 
-class ChromecastRunner(val logger: Logger) : ChromeCastsListener, ChromeCastSpontaneousEventListener, ChromeCastConnectionEventListener {
+class ChromecastRunner(val logger: Logger) : ChromeCastsListener {
+  val listeners: MutableMap<String, ChromecastListener> = LinkedHashMap()
+
   fun start() {
     logger.info("Looking for ChromeCasts...")
     ChromeCasts.registerListener(this)
@@ -21,43 +24,78 @@ class ChromecastRunner(val logger: Logger) : ChromeCastsListener, ChromeCastSpon
 
   override fun newChromeCastDiscovered(chromeCast: ChromeCast) {
     logger.info("Found a chromecast: {}", chromeCast.title)
-    chromeCast.registerListener(this)
-    chromeCast.registerConnectionListener(this)
 
-    try {
-      val runningApp = chromeCast.status.runningApp
+    val listener = ChromecastListener(logger, chromeCast)
+    listeners[chromeCast.address] = listener
 
-      if (runningApp != null && !runningApp.isIdleScreen) {
-        logger.info("{} is running app: {}", chromeCast.title, runningApp.name)
-        printMetaData(chromeCast.mediaStatus)
-      } else {
-        logger.info("{} is : {}", chromeCast.title, chromeCast.status)
-      }
-    } catch (e: java.io.IOException) {
-      logger.error("Running app failed", e)
-    }
+    listener.initialize()
   }
 
   override fun chromeCastRemoved(chromeCast: ChromeCast) {
     logger.info("Killed a chromecast: {}", chromeCast.title)
+    listeners[chromeCast.address]?.destroy()
+  }
+}
+
+class ChromecastListener(val logger: Logger, val chromeCast: ChromeCast) : ChromeCastSpontaneousEventListener, ChromeCastConnectionEventListener {
+  var timer: Timer? = null
+
+  fun initialize() {
+    logger.info("initializing")
+    chromeCast.registerListener(this)
+    chromeCast.registerConnectionListener(this)
+
+    val status = chromeCast.status
+    if (status != null) {
+      startTimer()
+    }
+  }
+
+  fun destroy() {
+    stopTimer()
     chromeCast.unregisterListener(this)
     chromeCast.unregisterConnectionListener(this)
   }
 
+  fun startTimer() {
+    this.timer = timer("timer for ${chromeCast.name}", false, 0, 1000 ) {
+      val status = chromeCast.status
+      printStatus(status)
+
+      val runningApp = status.runningApp
+      if (runningApp != null) {
+        val mediaStatus: MediaStatus? = chromeCast.mediaStatus
+        if (mediaStatus != null) {
+          printMetaData(mediaStatus)
+        }
+      }
+    }
+  }
+
+  fun stopTimer() {
+    timer?.cancel()
+    timer = null
+  }
+
   override fun connectionEventReceived(event: ChromeCastConnectionEvent) {
-    logger.info("Received a connection event: {}", event.isConnected)
+    if (event.isConnected) {
+      // Let the timer be a timer.
+    } else {
+      stopTimer()
+    }
   }
 
   override fun spontaneousEventReceived(event: ChromeCastSpontaneousEvent) {
     val type = event.type
     val data = event.getData(type.dataClass)
-    logger.info("Received a spontaneous event: {}", data)
+    logger.info("{} Received a spontaneous event: {}", chromeCast.title, data)
 
     when (data) {
+      is Status -> {
+        printStatus(data)
+      }
       is MediaStatus -> {
-        if (data.media != null) {
-          printMetaData(data)
-        }
+        printMetaData(data)
       }
       else -> {
         logger.info("Not handling message: $data")
@@ -65,59 +103,22 @@ class ChromecastRunner(val logger: Logger) : ChromeCastsListener, ChromeCastSpon
     }
   }
 
+  private fun printStatus(status: Status) {
+    logger.info("{} Received status update", chromeCast.title)
+    logger.info("  app: {}", status.runningApp?.name)
+    logger.info("  volume: {}", status.volume.level)
+  }
+
   private fun printMetaData(mediaStatus: MediaStatus) {
-    val media = mediaStatus.media
-    val metadata = media.metadata
+    val media : Media? = mediaStatus.media
+    val metadata = media?.metadata
 
-    logger.info("  volume: {}", mediaStatus.volume)
     logger.info("  currentTime: {}", mediaStatus.currentTime.toInt())
-    logger.info("  duration: {}", media.duration.toInt())
+    logger.info("  duration: {}", media?.duration?.toInt())
 
-    when (metadata) {
-      is MediaMetadata.GenericMetaData -> {
-        logger.info("  artist: {}", metadata.artist())
-        logger.info("  title: {}", metadata.title())
-        logger.info("  subtitle: {}", metadata.subtitle())
-        logger.info("  images: {}", Arrays.toString(metadata.images()))
-      }
-      is MediaMetadata.MovieMetaData -> {
-        logger.info("  title: {}", metadata.title())
-        logger.info("  subtitle: {}", metadata.subtitle())
-        logger.info("  studio: {}", metadata.studio())
-        logger.info("  releaseDate: {}", metadata.releaseDate())
-        logger.info("  images: {}", Arrays.toString(metadata.images()))
-      }
-      is MediaMetadata.TvShowMetaData -> {
-        logger.info("  seriesTitle: {}", metadata.seriesTitle())
-        logger.info("  season: {}", metadata.seasonNumber())
-        logger.info("  episode: {}", metadata.episodeNumber())
-        logger.info("  title: {}", metadata.title())
-        logger.info("  broadcastDate: {}", metadata.broadcastDate())
-        logger.info("  releaseDate: {}", metadata.releaseDate())
-        logger.info("  images: {}", Arrays.toString(metadata.images()))
-      }
-      is MediaMetadata.MusicTrackMetaData -> {
-        logger.info("  artist: {}", metadata.artist())
-        logger.info("  title: {}", metadata.title())
-        logger.info("  albumName: {}", metadata.albumName())
-        logger.info("  albumArtist: {}", metadata.albumArtist())
-        logger.info("  composer: {}", metadata.composer())
-        logger.info("  disc: {}", metadata.discNumber())
-        logger.info("  track: {}", metadata.trackNumber())
-        logger.info("  releaseDate: {}", metadata.releaseDate())
-        logger.info("  images: {}", Arrays.toString(metadata.images()))
-      }
-      is MediaMetadata.PhotoMetaData -> {
-        logger.info("  artist: {}", metadata.artist())
-        logger.info("  title: {}", metadata.title())
-        logger.info("  creationDate: {}", metadata.creationDate())
-        logger.info("  height: {}", metadata.height())
-        logger.info("  width: {}", metadata.width())
-        logger.info("  locationName: {}", metadata.locationName())
-        logger.info("  locationLat: {}", metadata.locationLatitude())
-        logger.info("  locationLon: {}", metadata.locationLongitude())
-      }
-    }
+    logger.info("  artist: {}", metadata?.getOrDefault(Media.METADATA_ALBUM_ARTIST, ""))
+    logger.info("  title: {}", metadata?.getOrDefault(Media.METADATA_TITLE, ""))
+    logger.info("  album: {}", metadata?.getOrDefault(Media.METADATA_ALBUM_NAME, ""))
   }
 }
 
