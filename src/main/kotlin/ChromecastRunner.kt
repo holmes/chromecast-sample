@@ -11,6 +11,7 @@ import su.litvak.chromecast.api.v2.Media
 import su.litvak.chromecast.api.v2.MediaStatus
 import su.litvak.chromecast.api.v2.Status
 import java.util.Timer
+import kotlin.concurrent.thread
 import kotlin.concurrent.timer
 
 class ChromecastRunner(val logger: Logger) : ChromeCastsListener {
@@ -58,7 +59,7 @@ class ChromecastListener(val logger: Logger, val chromeCast: ChromeCast) : Chrom
   }
 
   fun startTimer() {
-    this.timer = timer("timer for ${chromeCast.name}", false, 0, 1000 ) {
+    this.timer = timer("timer for ${chromeCast.name}", false, 0, 1000) {
       val status = chromeCast.status
       printStatus(status)
 
@@ -110,7 +111,7 @@ class ChromecastListener(val logger: Logger, val chromeCast: ChromeCast) : Chrom
   }
 
   private fun printMetaData(mediaStatus: MediaStatus) {
-    val media : Media? = mediaStatus.media
+    val media: Media? = mediaStatus.media
     val metadata = media?.metadata
 
     logger.info("  currentTime: {}", mediaStatus.currentTime.toInt())
@@ -122,13 +123,11 @@ class ChromecastListener(val logger: Logger, val chromeCast: ChromeCast) : Chrom
   }
 }
 
-object ChromecastRunnerObject {
-  @JvmStatic fun main(args: Array<String>) {
-    System.setProperty("org.slf4j.simpleloggerger.defaultloggerLevel", "debug")
-    System.setProperty("org.slf4j.simpleloggerger.showDateTime", "true")
-    val logger = LoggerFactory.getLogger(ChromecastRunner::class.java)
+fun main(args: Array<String>) {
+  System.setProperty("org.slf4j.simpleloggerger.defaultloggerLevel", "debug")
+  System.setProperty("org.slf4j.simpleloggerger.showDateTime", "true")
+  val logger = LoggerFactory.getLogger(ChromecastRunner::class.java)
 
-    // Start it up.
-    ChromecastRunner(logger).start()
-  }
+  // Start it up.
+  ChromecastRunner(logger).start()
 }
