@@ -18,13 +18,13 @@ class ChromecastRunner(val logger: Logger) : ChromeCastsListener {
   val listeners: MutableMap<String, ChromecastListener> = LinkedHashMap()
 
   fun start() {
-    logger.info("Looking for ChromeCasts...")
+    logger.info("Looking for Chromecasts...")
     ChromeCasts.registerListener(this)
     ChromeCasts.startDiscovery()
   }
 
   override fun newChromeCastDiscovered(chromeCast: ChromeCast) {
-    logger.info("Found a chromecast: {}", chromeCast.title)
+    logger.info("Found {} at: {}", chromeCast.title, chromeCast.address)
 
     val listener = ChromecastListener(logger, chromeCast)
     listeners[chromeCast.address] = listener
@@ -42,7 +42,7 @@ class ChromecastListener(val logger: Logger, val chromeCast: ChromeCast) : Chrom
   var timer: Timer? = null
 
   fun initialize() {
-    logger.info("initializing")
+    logger.info("Initializing {}", chromeCast.name)
     chromeCast.registerListener(this)
     chromeCast.registerConnectionListener(this)
 
@@ -59,7 +59,7 @@ class ChromecastListener(val logger: Logger, val chromeCast: ChromeCast) : Chrom
   }
 
   fun startTimer() {
-    this.timer = timer("timer for ${chromeCast.name}", false, 0, 1000) {
+    this.timer = timer("timer for ${chromeCast.name}", false, 0, 10000) {
       val status = chromeCast.status
       printStatus(status)
 
